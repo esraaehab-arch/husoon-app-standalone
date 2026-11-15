@@ -1,0 +1,22 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function isAdmin() {
+      return request.auth != null && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+    // Each person's own progress: only they can read or change it.
+    match /users/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+    // Mushaf types: anyone can read them, only admins can add, change or remove them.
+    match /mushafs/{id} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+    // Admin list: add a document here by hand in the Firebase console, named after your account id.
+    match /admins/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if false;
+    }
+  }
+}

@@ -1,0 +1,15 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // Mushaf PDFs: anyone can read them, only admins can upload or delete.
+    match /pdfs/{file} {
+      allow read: if true;
+      allow delete: if request.auth != null
+        && firestore.exists(/databases/(default)/documents/admins/$(request.auth.uid));
+      allow create, update: if request.auth != null
+        && firestore.exists(/databases/(default)/documents/admins/$(request.auth.uid))
+        && request.resource.size < 60 * 1024 * 1024
+        && request.resource.contentType == 'application/pdf';
+    }
+  }
+}

@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Husoon Hifz Tracker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Reem+Kufi:wght@500;700&family=Schibsted+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+/* Layout idea: one phone-width column; a five-segment ring (one segment per fortress) leads, five werd rows follow. */
+:root{
+  --bg:#eef1ee;
+  --surface:#fbfcfa;
+  --ink:#10303a;
+  --muted:#5d7278;
+  --line:#d5dcd8;
+  --accent:#1d5c8f;      /* lapis */
+  --accent-ink:#ffffff;
+  --gold:#a87a1c;        /* completion */
+  --gold-soft:#f3e8cc;
+  --weak:#b4472f;
+  --far:#7fa3c2;
+  --display:"Reem Kufi","Noto Kufi Arabic","Segoe UI",Tahoma,sans-serif;
+  --body:"Schibsted Grotesk","Segoe UI",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0c1f26; --surface:#132c35; --ink:#e6eeec; --muted:#93a8ac; --line:#24424c;
+    --accent:#6fb0e6; --accent-ink:#08202b; --gold:#e0b558; --gold-soft:#3a3118;
+    --weak:#e8846c; --far:#3f6f96; color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0c1f26; --surface:#132c35; --ink:#e6eeec; --muted:#93a8ac; --line:#24424c;
+  --accent:#6fb0e6; --accent-ink:#08202b; --gold:#e0b558; --gold-soft:#3a3118;
+  --weak:#e8846c; --far:#3f6f96; color-scheme:dark;
+}
+:root[data-look="day"]{
+  --bg:#eef1ee; --surface:#fbfcfa; --ink:#10303a; --muted:#5d7278; --line:#d5dcd8;
+  --accent:#1d5c8f; --accent-ink:#ffffff; --gold:#a87a1c; --gold-soft:#f3e8cc;
+  --weak:#b4472f; --far:#7fa3c2; color-scheme:light;
+}
+:root[data-look="night"]{
+  --bg:#0c1f26; --surface:#132c35; --ink:#e6eeec; --muted:#93a8ac; --line:#24424c;
+  --accent:#6fb0e6; --accent-ink:#08202b; --gold:#e0b558; --gold-soft:#3a3118;
+  --weak:#e8846c; --far:#3f6f96; color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.45;font-variant-numeric:tabular-nums}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,a:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.app{max-width:520px;margin:0 auto;min-height:100%;display:flex;flex-direction:column;padding:0 16px 96px}
+.ar{font-family:var(--display);direction:rtl;unicode-bidi:isolate}
+
+/* header */
+.top{display:flex;align-items:center;gap:16px;padding:20px 0 16px}
+.top h1{font-family:var(--display);font-size:26px;line-height:1.2;margin:0;font-weight:700}
+.top .dates{color:var(--muted);font-size:13px;margin-top:4px}
+.ring{flex:none;width:92px;height:92px;position:relative}
+.ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ring .seg{fill:none;stroke:var(--line);stroke-width:9;stroke-linecap:round;transition:stroke .3s}
+.ring .seg.on{stroke:var(--gold)}
+.ring .mid{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;font-weight:700;font-size:22px}
+.ring .mid small{font-size:10px;font-weight:500;color:var(--muted);letter-spacing:.04em;text-transform:uppercase}
+
+/* stat strip */
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px}
+.stat{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.stat b{display:block;font-size:20px}
+.stat span{font-size:12px;color:var(--muted)}
+
+/* werd rows */
+.werds{display:flex;flex-direction:column;gap:10px}
+.werd{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:14px;display:grid;grid-template-columns:1fr auto;gap:6px 12px;align-items:center;border-inline-start:5px solid var(--accent)}
+.werd.done{border-inline-start-color:var(--gold)}
+.werd .name{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap}
+.werd .name .ar{font-size:21px;font-weight:700}
+.werd .name .en{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.werd .what{font-size:15px;font-weight:600}
+.golink{border:0;background:none;padding:0;font:inherit;font-weight:600;color:var(--accent);text-align:start;text-decoration:underline;text-underline-offset:3px}
+.werd .sub{font-size:13px;color:var(--muted)}
+.werd .info{min-width:0}
+.btn{border:1px solid var(--accent);background:var(--accent);color:var(--accent-ink);border-radius:999px;padding:9px 16px;font-weight:600;font-size:14px;white-space:nowrap}
+.btn.ghost{background:transparent;color:var(--accent)}
+.btn.gold{background:var(--gold-soft);border-color:var(--gold);color:var(--ink)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.sync{margin-top:18px;font-size:12px;color:var(--muted);text-align:center}
+
+.tick{width:42px;height:42px;border-radius:10px;border:2px solid var(--muted);background:transparent;color:transparent;font-size:22px;font-weight:700;line-height:1;display:flex;align-items:center;justify-content:center;padding:0;flex:none}
+.tick.on{background:var(--gold);border-color:var(--gold);color:var(--surface)}
+.tick.part{border-color:var(--gold);color:var(--ink);font-size:13px;background:var(--gold-soft)}
+.tick:disabled{opacity:.35;cursor:not-allowed}
+.tick.show:disabled{opacity:1;cursor:default}
+/* week */
+.week{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:8px 10px 10px}
+.wrow{display:grid;grid-template-columns:minmax(58px,1.3fr) repeat(5,1fr);gap:6px;align-items:center;padding:6px 4px;border-top:1px solid var(--line)}
+.wrow.head{border-top:0;font-size:11px;color:var(--muted);text-align:center;align-items:end}
+.wrow.head .ar{display:block;font-size:15px;color:var(--ink);font-weight:700}
+.wrow.now{background:var(--gold-soft);border-radius:10px;border-top-color:transparent}
+.wrow .dn{font-weight:700;font-size:14px}
+.wrow .dn small{display:block;font-weight:400;font-size:12px;color:var(--muted)}
+.wrow .tick{width:100%;max-width:42px;height:auto;aspect-ratio:1;margin:0 auto}
+.wsum{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin:0 0 12px}
+.wsum b{font-size:20px}
+.wday{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px 12px;margin-bottom:8px}
+.wday.now{border-color:var(--gold);border-width:2px}
+.wday.later{opacity:.6}
+.wday .dh{display:flex;justify-content:space-between;align-items:baseline;font-weight:700;margin-bottom:8px}
+.wday .dh small{font-weight:400;color:var(--muted);font-size:13px}
+.wline{display:grid;grid-template-columns:52px repeat(5,1fr);gap:6px;align-items:start;text-align:center;font-size:10.5px;color:var(--muted)}
+.wline+.wline{margin-top:8px;padding-top:8px;border-top:1px solid var(--line)}
+.wline .rl{text-align:start;font-size:12px;font-weight:600;color:var(--ink);padding-top:9px}
+.wline .tick{width:36px;height:36px;margin:0 auto 3px;font-size:19px}
+.rsum{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px}
+.rlist{display:flex;flex-direction:column;gap:6px}
+.rrow{display:grid;grid-template-columns:1fr auto auto;gap:10px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:9px 12px;border-inline-start:5px solid var(--line)}
+.rrow.need{border-inline-start-color:var(--accent)}
+.rrow.weak{border-inline-start-color:var(--weak)}
+.rrow.ok{border-inline-start-color:var(--gold)}
+.rrow b{font-size:15px}
+.rrow small{display:block;color:var(--muted);font-size:12.5px}
+.rrow .tick{width:38px;height:38px}
+.flag{border:1.5px solid var(--line);background:transparent;border-radius:999px;padding:6px 11px;font-size:12px;font-weight:600;color:var(--muted)}
+.flag.on{background:var(--weak);border-color:var(--weak);color:var(--surface)}
+.gapset{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:13px;color:var(--muted);margin:0 0 12px}
+.gapset input{width:70px;padding:7px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);font:inherit;text-align:center}
+.addrow{display:flex;gap:8px;margin-bottom:6px}
+.addrow input{flex:1;min-width:0;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink);font:inherit}
+.rrow.done b{text-decoration:line-through;color:var(--muted)}
+.del{border:0;background:none;color:var(--muted);font-size:12.5px;font-weight:600;padding:4px 0;text-decoration:underline}
+.tk{min-width:86px;border:0;border-radius:999px;background:var(--accent);color:var(--accent-ink);padding:8px 12px;font-weight:700;font-size:15px;touch-action:manipulation;user-select:none}
+.tk small{display:inline;color:inherit;opacity:.85;font-weight:500;font-size:12px}
+.tk.full{background:var(--gold-soft);color:var(--ink)}
+.tk:active{transform:scale(.96)}
+.reader .bar{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:10px}
+.reader .bar .mid{display:flex;align-items:center;gap:6px;font-size:14px;color:var(--muted)}
+.reader .bar input{width:68px;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);font:inherit;text-align:center}
+.sheet{background:#fff;border:1px solid var(--line);border-radius:10px;overflow:hidden;min-height:200px}
+.sheet canvas{display:block;width:100%;height:auto}
+.sheet{touch-action:pan-y;cursor:pointer;user-select:none}
+.app.wide{max-width:1180px}
+.sheet.two{display:grid;grid-template-columns:1fr 1fr;gap:0}
+.sheet.two .half{min-width:0;border-inline-end:1px solid #cfd6d2}
+.sheet.two .half:last-child{border-inline-end:0}
+.sheet.look-gray canvas{filter:grayscale(1)}
+.sheet.look-bw canvas{filter:grayscale(1) contrast(1.7) brightness(1.06)}
+.idx{margin-bottom:14px}
+.jchips{display:grid;grid-template-columns:repeat(10,1fr);gap:5px;margin-bottom:8px}
+.jc{border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:8px;padding:8px 0;font-weight:600;font-size:13px}
+.ixr{display:flex;justify-content:space-between;align-items:baseline;gap:10px;width:100%;text-align:start;background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:6px;font-size:15px}
+.ixr small{color:var(--muted);font-size:12.5px;white-space:nowrap}
+.ixr b{color:var(--accent);margin-inline-end:6px}
+.ixr .ar{font-size:18px;margin-inline-end:6px}
+.ixlist{max-height:340px;overflow:auto;margin-top:8px}
+details.ixall summary{cursor:pointer;font-weight:600;color:var(--accent);padding:6px 0}
+.blankpg{background:#fff;aspect-ratio:595/842;width:100%}
+.sheet .half .note{padding:40px 14px;text-align:center;color:#5d7278}
+.vh{position:fixed;left:0;top:0;width:1px;height:1px;opacity:0;pointer-events:none}
+label.btn{display:inline-block;cursor:pointer}
+.pick{display:block;border:2px dashed var(--muted);border-radius:14px;padding:28px 16px;text-align:center;background:var(--surface);cursor:pointer}
+.pick b{display:block;font-size:17px;margin-bottom:4px}
+.pick span{font-size:13px;color:var(--muted)}
+.pick input{display:block;margin:14px auto 0;max-width:100%;font:inherit}
+.linkb{border:0;background:none;color:var(--accent);font-weight:600;font-size:12.5px;padding:4px 0;text-decoration:underline;margin-inline-end:12px}
+.srcsel{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;font-size:14px}
+.srcsel select{flex:1;min-width:0;max-width:300px;padding:9px;border:1px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);font:inherit}
+.mtype{border-top:1px solid var(--line);padding:12px 0}
+.mtype .mh{display:flex;justify-content:space-between;align-items:baseline;gap:10px;font-weight:700;margin-bottom:8px}
+.mtype .mh small{font-weight:400;color:var(--muted);font-size:12px}
+.slots{display:grid;grid-template-columns:repeat(10,1fr);gap:4px;margin-bottom:10px}
+.slots .slot{text-align:center;cursor:pointer;border:1.5px solid var(--muted);background:transparent;border-radius:6px;padding:6px 0;font-size:12px;font-weight:600;color:var(--ink)}
+.slots .slot.on{background:var(--gold);border-color:var(--gold);color:var(--surface)}
+.mtype .f{border-top:0;padding:4px 0}
+/* quarters */
+.qhead,.qrow{display:grid;grid-template-columns:44px repeat(4,1fr) 10px repeat(4,1fr);gap:4px;align-items:center}
+.qhead{font-size:11px;color:var(--muted);text-align:center;margin-bottom:6px}
+.qrow{margin-bottom:5px}
+.qrow .tick{width:100%;height:34px;border-radius:7px;font-size:17px;border-width:1.5px}
+.qrow .tick.jz{font-size:13px;color:var(--ink);border-color:var(--ink)}
+.qrow .tick.jz.on{color:var(--surface);border-color:var(--gold)}
+.qrow .tick.weak{border-color:var(--weak);background:var(--weak);color:var(--surface)}
+.qrow .tick.cur{border-style:dashed;border-color:var(--accent)}
+.salah{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-top:10px}
+.salah .name{display:flex;align-items:baseline;gap:10px;margin-bottom:10px}
+.salah .name .ar{font-size:21px;font-weight:700}
+.salah .name .en{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.salah .five{display:grid;grid-template-columns:repeat(5,1fr);gap:8px;text-align:center;font-size:12px;color:var(--muted)}
+.salah .five .tick{margin:0 auto 4px}
+.due{display:inline-block;margin-inline-start:6px;padding:1px 8px;border-radius:999px;background:var(--weak);color:var(--surface);font-size:11px;font-weight:700}
+.banner{background:var(--surface);border:1px solid var(--weak);border-inline-start:5px solid var(--weak);border-radius:10px;padding:10px 12px;font-size:14px;font-weight:600;margin-bottom:12px}
+.f input[type=time]{width:120px}
+.note{font-size:12px;color:var(--muted);margin:8px 0 2px}
+/* tab bar */
+nav.tabs{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);display:flex;justify-content:center}
+nav.tabs div{display:flex;width:100%;max-width:520px}
+nav.tabs a{flex:1;text-align:center;padding:14px 1px 16px;text-decoration:none;color:var(--muted);font-weight:600;font-size:12px;border-top:3px solid transparent;margin-top:-1px}
+nav.tabs a.on{color:var(--ink);border-top-color:var(--accent)}
+
+/* session */
+.back{background:none;border:0;padding:16px 0 8px;color:var(--accent);font-weight:600}
+.sess h2{font-family:var(--display);font-size:24px;margin:0 0 2px}
+.sess .hint{color:var(--muted);font-size:14px;margin:0 0 16px}
+.steps{list-style:none;margin:0 0 20px;padding:0;display:flex;flex-direction:column;gap:6px}
+.steps li{display:flex;justify-content:space-between;gap:12px;padding:9px 12px;border-radius:10px;border:1px solid var(--line);background:var(--surface);font-size:14px;color:var(--muted)}
+.steps li.cur{border-color:var(--accent);color:var(--ink);font-weight:600}
+.steps li.ok{color:var(--ink)}
+.steps li.ok .n{color:var(--gold);font-weight:700}
+.tapwrap{display:flex;flex-direction:column;align-items:center;gap:14px}
+.tap{width:210px;height:210px;border-radius:50%;border:0;background:var(--accent);color:var(--accent-ink);position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;-webkit-tap-highlight-color:transparent;touch-action:manipulation;user-select:none}
+.tap:active{transform:scale(.97)}
+.tap:disabled{background:var(--gold-soft);color:var(--ink);opacity:1}
+.tap .big{font-size:54px;font-weight:700;line-height:1}
+.tap .of{font-size:15px;opacity:.85;margin-top:6px}
+.tap .lbl{font-size:13px;opacity:.85;margin-top:8px;max-width:150px;text-align:center}
+.tap svg{position:absolute;inset:-10px;width:230px;height:230px;transform:rotate(-90deg);pointer-events:none}
+.tap svg circle{fill:none;stroke-width:6}
+.tap svg .tr{stroke:var(--line)}
+.tap svg .pr{stroke:var(--gold);stroke-linecap:round;transition:stroke-dashoffset .2s}
+.row{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+.now{font-size:17px;font-weight:600;text-align:center;margin:0}
+
+/* mushaf map */
+h2.page{font-family:var(--display);font-size:24px;margin:20px 0 4px}
+p.lead{color:var(--muted);font-size:14px;margin:0 0 14px}
+.seg-ctl{display:flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-bottom:10px;background:var(--surface)}
+.seg-ctl button{flex:1;border:0;background:none;padding:9px 6px;font-size:13px;font-weight:600;color:var(--muted)}
+.seg-ctl button.on{background:var(--accent);color:var(--accent-ink)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-bottom:12px}
+.legend i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-inline-end:5px;vertical-align:-1px}
+.juz{display:grid;grid-template-columns:30px 1fr;gap:6px;align-items:start;margin-bottom:5px}
+.juz>span{font-size:11px;color:var(--muted);padding-top:2px;text-align:end}
+.cells{display:flex;flex-wrap:wrap;gap:3px}
+.c{width:15px;height:15px;border-radius:3px;border:0;padding:0;background:var(--line)}
+.c.far{background:var(--far)} .c.near{background:var(--accent)} .c.weak{background:var(--weak)} .c.cur{background:var(--gold)}
+.tip{position:sticky;bottom:64px;background:var(--ink);color:var(--bg);border-radius:8px;padding:7px 12px;font-size:13px;width:max-content;max-width:100%;margin:10px auto 0}
+
+/* plan */
+fieldset{border:1px solid var(--line);background:var(--surface);border-radius:14px;margin:0 0 12px;padding:6px 14px 10px}
+legend{font-weight:700;font-size:14px;padding:0 6px}
+.f{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:8px 0;border-top:1px solid var(--line)}
+.f:first-of-type{border-top:0}
+.f label{font-size:14px}
+.f label small{display:block;color:var(--muted);font-size:12px}
+.f input,.f select{width:92px;padding:8px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:inherit;text-align:center}
+.f select{width:150px;text-align:start}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}}
+@media (max-width:380px){.tap{width:180px;height:180px}.tap svg{width:200px;height:200px}.ring{width:76px;height:76px}}
+</style>
+</head>
+<body>
+<div class="app" id="app"></div><input id="rd-file" type="file" accept="application/pdf,.pdf" class="vh"><input id="mt-file" type="file" accept="application/pdf,.pdf" multiple class="vh"><input id="fp-file" type="file" accept="application/pdf,.pdf" class="vh">
+<nav class="tabs" aria-label="Sections"><div>
+  <a href="#today" id="tab-today">Today</a>
+  <a href="#week" id="tab-week">Week</a>
+  <a href="#revise" id="tab-revise">Revise</a>
+  <a href="#mushaf" id="tab-mushaf">Map</a>
+  <a href="#reader" id="tab-reader">Mushaf</a>
+  <a href="#plan" id="tab-plan">Settings</a>
+</div></nav>
+
+<script>
+(function(){
+"use strict";
+var TOTAL=604;
+var JUZ=[1,22,42,62,82,102,121,142,162,182,201,222,242,262,282,302,322,342,362,382,402,422,442,462,482,502,522,542,562,582];
+var LS="husoon-hifz-v1";
+var STEPS=[
+  {k:"listen",t:"Listen to the page",h:"Play the page from your reciter and follow in the mushaf. Tap after each full listen."},
+  {k:"silent",t:"Read silently",h:"Read the page with your eyes only. Tap after each read."},
+  {k:"aloud",t:"Read aloud",h:"Read the page out loud, looking at the mushaf. Tap after each read."},
+  {k:"ayah",t:"Repeat each ayah",h:"Take one ayah at a time and repeat it from memory. Tap after each repetition."},
+  {k:"page",t:"Recite the whole page",h:"Join the ayat and recite the full page from memory. Tap after each recitation."}
+];
+
+function fresh(){return {v:1,ts:0,
+  plan:{start:1,dir:1,perDay:1,read:20,listen:10,near:20,far:20,gap:14,tekrar:20,pdfOffset:0,mushaf:"",view:"auto",look:"color",theme:"auto",rem:{read:"",listen:"",mem:"",near:"",far:""},reps:{listen:5,silent:5,aloud:5,ayah:10,page:20}},
+  pages:{},days:{},rev:[],readerPage:1,readPos:1,listenPos:1,farPos:0,session:null};}
+function adopt(d){var s=fresh();if(!d||typeof d!=="object")return s;
+  for(var k in s)if(d[k]!==undefined&&d[k]!==null||k==="session")s[k]=d[k]===undefined?s[k]:d[k];
+  var p=fresh().plan;for(var a in p)if(s.plan[a]===undefined)s.plan[a]=p[a];
+  for(var r in p.reps)if(!s.plan.reps||s.plan.reps[r]===undefined){s.plan.reps=s.plan.reps||{};s.plan.reps[r]=p.reps[r];}
+  if(!Array.isArray(s.rev))s.rev=[];if(!s.pages)s.pages={};if(!s.days)s.days={};return s;}
+
+var state=fresh(),syncMode="device",markMode="mem",tipText="",weekTab="awrad",memMsg="",revMsg="",pdfDoc=null,pdfName="",pdfMsg="",pdfLib=null,pdfTask=null,drawSeq=0,dbNS=null,assetsNS=null,mushafs=[],docCache={},upMsg="",pendType="",pendJuz=0,delArm="",uploading=false,fpName="",fpOff=0,splitLib=null,expMsg="";
+try{var raw=localStorage.getItem(LS);if(raw)state=adopt(JSON.parse(raw));}catch(e){}
+
+/* ---------- persistence ---------- */
+var ref=null,timer=null,writing=false,dirty=false;
+function save(){state.ts=Date.now();
+  try{localStorage.setItem(LS,JSON.stringify(state));}catch(e){}
+  if(ref){dirty=true;clearTimeout(timer);timer=setTimeout(push,1200);}}
+function push(){if(!ref||writing||!dirty)return;writing=true;dirty=false;
+  ref.set(JSON.parse(JSON.stringify(state))).then(function(){writing=false;if(dirty)push();},
+    function(){writing=false;ref=null;syncMode="device";render();});}
+function watchMushafs(db){dbNS=db;
+  try{db.collection("mushafs").onSnapshot(function(q){
+    mushafs=q.docs.map(function(d){var x=d.data()||{};return {id:d.id,name:x.name||"Mushaf",files:x.files||{},off:x.off||0,created:x.created||0,starts:x.starts||null,gaps:x.gaps||{},full:x.full||""};}).sort(function(a,b){return a.created-b.created;});
+    var ae=document.activeElement;if((route()==="reader"||route()==="plan")&&!(ae&&ae.tagName==="INPUT"))render();
+  },function(){});}catch(e){}}
+function connect(){
+  if(!window.claude||!window.claude.use)return;
+  window.claude.use("db").then(function(db){if(db)watchMushafs(db);}).catch(function(){});
+  window.claude.use("assets").then(function(a){assetsNS=a||null;if(a&&(route()==="reader"||route()==="plan"))render();}).catch(function(){});
+  Promise.all([window.claude.use("db"),window.claude.use("user")]).then(function(r){
+    var db=r[0],user=r[1];if(!db||!user)return;
+    return user.id().then(function(id){if(!id)return;
+      var d=db.doc("data/users/"+id+"/hifz");
+      var to=new Promise(function(_,rej){setTimeout(function(){rej(new Error("timeout"));},10000);});
+      return Promise.race([d.get(),to]).then(function(snap){
+        ref=d;syncMode="account";
+        var remote=snap.exists?snap.data():null;
+        if(remote&&(remote.ts||0)>=(state.ts||0)){state=adopt(JSON.parse(JSON.stringify(remote)));try{localStorage.setItem(LS,JSON.stringify(state));}catch(e){}}
+        else if(state.ts){dirty=true;push();}
+        render();});});
+  }).catch(function(){});
+}
+
+/* ---------- helpers ---------- */
+function pad(n){return n<10?"0"+n:""+n;}
+function dkey(d){d=d||new Date();return d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());}
+function day(){var k=dkey();if(!state.days[k])state.days[k]={};return state.days[k];}
+function juzOf(p){var j=1;for(var i=0;i<30;i++)if(p>=JUZ[i])j=i+1;return j;}
+function wrap(p){return ((p-1)%TOTAL+TOTAL)%TOTAL+1;}
+function span(pos,n){var a=[];for(var i=0;i<n;i++)a.push(wrap(pos+i));return a;}
+function ranges(list){var s=list.slice().sort(function(a,b){return a-b;}),out=[],i=0;
+  while(i<s.length){var j=i;while(j+1<s.length&&s[j+1]===s[j]+1)j++;out.push(s[i]===s[j]?""+s[i]:s[i]+"–"+s[j]);i=j+1;}
+  return out.join(", ");}
+function juzLabel(list){if(!list.length)return "";var a=juzOf(list[0]),b=juzOf(list[list.length-1]);return a===b?"Juz "+a:"Juz "+a+" to "+b;}
+function memList(){return Object.keys(state.pages).map(Number);}
+function byRecent(){return memList().sort(function(a,b){return (state.pages[b].t||0)-(state.pages[a].t||0);});}
+function nearList(){var n=byRecent().slice(0,state.plan.near);
+  memList().forEach(function(p){if(state.pages[p].w&&n.indexOf(p)<0)n.push(p);});return n;}
+function farAll(){return byRecent().slice(state.plan.near).sort(function(a,b){return a-b;});}
+function farToday(){var all=farAll();if(!all.length)return [];var n=Math.min(state.plan.far,all.length),out=[];
+  for(var i=0;i<n;i++)out.push(all[(state.farPos+i)%all.length]);return out;}
+function nextNew(){var p=wrap(state.plan.start);for(var i=0;i<TOTAL;i++){if(!state.pages[p])return p;p=wrap(p+state.plan.dir);}return null;}
+function streak(){var d=new Date(),n=0;
+  function any(k){var x=state.days[k];return x&&(x.read||x.listen||x.near||x.far||x.mem>0);}
+  if(!any(dkey(d)))d.setDate(d.getDate()-1);
+  while(any(dkey(d))){n++;d.setDate(d.getDate()-1);}return n;}
+function finishDate(){var left=TOTAL-memList().length;if(!left)return "Complete";
+  var d=new Date();d.setDate(d.getDate()+Math.ceil(left/Math.max(1,state.plan.perDay)));
+  return d.toLocaleDateString("en-GB",{month:"short",year:"numeric"});}
+function hijri(){try{return new Intl.DateTimeFormat("en-u-ca-islamic-umalqura",{day:"numeric",month:"long",year:"numeric"}).format(new Date());}catch(e){return "";}}
+function esc(s){return String(s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c];});}
+
+var SALAH=[["f","الفجر","Fajr"],["d","الظهر","Dhuhr"],["a","العصر","Asr"],["m","المغرب","Maghrib"],["i","العشاء","Isha"]];
+function nowHM(){var d=new Date();return pad(d.getHours())+":"+pad(d.getMinutes());}
+function isDue(key,done){var t=(state.plan.rem||{})[key];return !!t&&!done&&t<=nowHM();}
+function dueChip(key,done){var t=(state.plan.rem||{})[key];if(!t)return "";return isDue(key,done)?'<span class="due">Due since '+esc(t)+"</span>":" · reminder "+esc(t);}
+function applyTheme(){var t=state.plan.theme,el=document.documentElement;
+  if(t==="day"||t==="night")el.setAttribute("data-look",t);else el.removeAttribute("data-look");}
+function salahTick(k,key,on,label,dis){return '<button class="tick'+(on?" on":"")+'" data-salah="'+key+'" data-day="'+k+'" aria-pressed="'+(on?"true":"false")+'" aria-label="'+label+(on?", prayed":", not ticked")+'"'+(dis?" disabled":"")+">✓</button>";}
+
+/* ---------- views ---------- */
+function ringSvg(flags){var n=flags.length,C=2*Math.PI*40,seg=C/n,gap=n>5?6:9,h="";
+  for(var i=0;i<n;i++)h+='<circle class="seg'+(flags[i]?" on":"")+'" cx="50" cy="50" r="40" stroke-dasharray="'+(seg-gap).toFixed(2)+" "+(C-seg+gap).toFixed(2)+'" stroke-dashoffset="'+(-(i*seg+gap/2)).toFixed(2)+'"/>';
+  return '<svg viewBox="0 0 100 100" aria-hidden="true">'+h+"</svg>";}
+function werd(o){return '<section class="werd'+(o.done?" done":"")+'"><div class="info"><div class="name"><span class="ar" lang="ar">'+o.ar+'</span><span class="en">'+o.en+'</span></div><div class="what">'+(o.go?'<button class="golink" data-read="'+o.go+'" aria-label="Open '+o.what+' in the Mushaf">'+o.what+" ›</button>":o.what)+'</div><div class="sub">'+o.sub+'</div></div>'+o.btn+"</section>";}
+function doneBtn(act,done,dis,label){return '<button class="tick'+(done?" on":"")+'" data-act="'+act+'" aria-pressed="'+(done?"true":"false")+'" aria-label="'+label+(done?", done":", not done")+'"'+(dis?" disabled":"")+">✓</button>";}
+
+function viewToday(){
+  var d=day(),pl=state.plan;
+  var rd=span(d.read?wrap(state.readPos-pl.read):state.readPos,pl.read);
+  var ls=span(d.listen?wrap(state.listenPos-pl.listen):state.listenPos,pl.listen);
+  var mem=d.mem||0,memDone=mem>=pl.perDay,nx=state.session?state.session.page:nextNew();
+  var near=nearList(),farN=farAll().length;
+  var far=d.far&&d.farList?d.farList:farToday();
+  var nearDone=!!d.near,farDone=!!d.far;
+  var flags=[!!d.read,!!d.listen,memDone,nearDone,farDone],count=flags.filter(Boolean).length;
+  var total=memList().length;
+  var h='<header class="top"><div class="ring">'+ringSvg(flags)+'<div class="mid">'+count+'/5<small>today</small></div></div><div><h1><span class="ar" lang="ar">الحصون الخمسة</span></h1><div class="dates">'+esc(new Date().toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long"}))+(hijri()?" · "+esc(hijri()):"")+"</div></div></header>";
+  h+='<div class="stats"><div class="stat"><b>'+total+'</b><span>of 604 pages memorized</span></div><div class="stat"><b>'+streak()+'</b><span>day streak</span></div><div class="stat"><b>'+finishDate()+'</b><span>projected khatm</span></div></div>';
+  var dueN=[isDue("read",d.read),isDue("listen",d.listen),nx!==null&&isDue("mem",memDone),near.length>0&&isDue("near",nearDone),far.length>0&&isDue("far",farDone)].filter(Boolean).length;
+  if(dueN)h+='<div class="banner" role="status">'+dueN+(dueN>1?" awrad are":" werd is")+" past the reminder time and not ticked yet.</div>";
+  h+='<div class="werds">';
+  h+=werd({ar:"ورد القراءة",en:"Reading werd",done:d.read,go:rd[0],what:"Pages "+ranges(rd),sub:pl.read+" pages · "+juzLabel(rd)+dueChip("read",d.read),btn:doneBtn("read",d.read,false,"Reading werd")});
+  h+=werd({ar:"ورد الاستماع",en:"Listening werd",done:d.listen,go:ls[0],what:"Pages "+ranges(ls),sub:pl.listen+" pages · "+juzLabel(ls)+dueChip("listen",d.listen),btn:doneBtn("listen",d.listen,false,"Listening werd")});
+  var memBtn=nx===null?'<button class="btn gold" disabled>Khatm ✓</button>':'<button class="btn'+(memDone&&!state.session?" ghost":"")+'" data-act="start">'+(state.session?"Continue":memDone?"One more":"Start")+"</button>";
+  h+=werd({ar:"ورد الحفظ",en:"Memorizing werd",done:memDone,go:nx||0,what:nx===null?"All 604 pages memorized":"Page "+nx+" · Juz "+juzOf(nx),sub:mem+" of "+pl.perDay+" new page"+(pl.perDay>1?"s":"")+" today"+(state.session?" · in progress":"")+(nx===null?"":dueChip("mem",memDone)),btn:memBtn});
+  h+=werd({ar:"مراجعة القريب",en:"Revising qareeb",done:nearDone,go:near.length?Math.min.apply(null,near):0,what:near.length?"Pages "+ranges(near):"Nothing yet",sub:near.length?near.length+" pages · your latest "+pl.near+" plus weak pages"+dueChip("near",nearDone):"Opens after your first memorized page",btn:doneBtn("near",nearDone,!near.length,"Revising qareeb")});
+  h+=werd({ar:"مراجعة البعيد",en:"Revising ba3eed",done:farDone,go:far.length?far[0]:0,what:far.length?"Pages "+ranges(far):"Nothing yet",sub:far.length?far.length+" of "+farN+" older pages, in rotation"+dueChip("far",farDone):"Opens once you pass "+pl.near+" memorized pages",btn:doneBtn("far",farDone,!far.length,"Revising ba3eed")});
+  h+="</div>";
+  h+='<p class="sync">'+(syncMode==="account"?"Progress is saved to your account and follows you across devices.":"Progress is saved on this device only.")+"</p>";
+  return h;}
+
+function viewSession(){
+  var s=state.session;if(!s){location.hash="today";return "";}
+  var rp=state.plan.reps,st=STEPS[s.step],target=rp[st.k],c=s.c[s.step];
+  var h='<button class="back" data-act="leave">‹ Back to today</button><div class="sess"><h2>Page '+s.page+" · Juz "+juzOf(s.page)+'</h2><p class="hint">Open your mushaf at page '+s.page+". The counters hold your place if you leave.</p>";
+  h+='<ol class="steps">';
+  STEPS.forEach(function(x,i){var cls=i<s.step?"ok":i===s.step?"cur":"",n;
+    if(x.k==="ayah")n=i<s.step?(s.ayahs||0)+" ayat ✓":i===s.step?"ayah "+s.ayah+" · "+s.c[i]+"/"+rp.ayah:"×"+rp.ayah+" each";
+    else n=i<s.step?s.c[i]+" ✓":s.c[i]+"/"+rp[x.k];
+    h+='<li class="'+cls+'"><span>'+(i+1)+". "+x.t+'</span><span class="n">'+n+"</span></li>";});
+  h+="</ol>";
+  var full=c>=target,R=110,C=2*Math.PI*R,frac=Math.min(1,c/target);
+  var lockTap=st.k==="ayah"&&full;
+  h+='<div class="tapwrap"><p class="now">'+st.h+"</p>";
+  h+='<button class="tap" data-act="tap"'+(lockTap?" disabled":"")+' aria-label="Count one repetition"><svg viewBox="0 0 230 230" aria-hidden="true"><circle class="tr" cx="115" cy="115" r="'+R+'"/><circle class="pr" cx="115" cy="115" r="'+R+'" stroke-dasharray="'+C.toFixed(1)+'" stroke-dashoffset="'+(C*(1-frac)).toFixed(1)+'"/></svg><span class="big">'+c+'</span><span class="of">of '+target+(st.k==="page"?" minimum":"")+'</span><span class="lbl">'+(lockTap?"Ayah "+s.ayah+" complete":st.k==="ayah"?"Ayah "+s.ayah+" · tap to count":"Tap to count")+"</span></button>";
+  h+='<div class="row">';
+  if(st.k==="ayah"&&full)h+='<button class="btn" data-act="nextayah">Next ayah</button><button class="btn ghost" data-act="lastayah">That was the last ayah</button>';
+  if(st.k==="page"&&full)h+='<button class="btn" data-act="finish">Finish page '+s.page+"</button>";
+  h+='<button class="btn ghost" data-read="'+s.page+'">Open page '+s.page+' in Mushaf</button>';
+  h+='<button class="btn ghost" data-act="undo"'+(c<1?" disabled":"")+">Undo one</button></div></div></div>";
+  return h;}
+
+function qPages(j,q){var a=JUZ[j],b=j<29?JUZ[j+1]-1:TOTAL,n=b-a+1,out=[];
+  for(var p=a+Math.floor(q*n/8);p<=a+Math.floor((q+1)*n/8)-1;p++)out.push(p);return out;}
+function jPages(j){var out=[];for(var p=JUZ[j];p<=(j<29?JUZ[j+1]-1:TOTAL);p++)out.push(p);return out;}
+function cover(list){var m=0,w=0;list.forEach(function(p){var g=state.pages[p];if(g){m++;if(g.w)w++;}});return {m:m,w:w,n:list.length};}
+function viewMushaf(){
+  var cur=state.session?state.session.page:null,total=memList().length,fullJ=0;
+  for(var x=0;x<30;x++){var cj=cover(jPages(x));if(cj.m===cj.n)fullJ++;}
+  var h='<h2 class="page">Mushaf map</h2><p class="lead">'+total+" of 604 pages memorized · "+fullJ+" full juz. Each row is one juz in eight quarters. Tick the juz number to mark a whole juz at once, or tick single quarters.</p>";
+  h+='<div class="seg-ctl" role="group" aria-label="What a tap does">'+[["mem","Tick as memorized"],["weak","Flag as weak"]].map(function(m){return '<button data-mode="'+m[0]+'" class="'+(markMode===m[0]?"on":"")+'">'+m[1]+"</button>";}).join("")+"</div>";
+  h+='<div class="qhead"><span>Juz</span><span>¼</span><span>½</span><span>¾</span><span>1</span><span></span><span>¼</span><span>½</span><span>¾</span><span>1</span></div>';
+  for(var j=0;j<30;j++){var c=cover(jPages(j));
+    h+='<div class="qrow"><button class="tick jz'+(c.m===c.n?" on":"")+'" data-juz="'+j+'" aria-label="Juz '+(j+1)+", "+c.m+" of "+c.n+' pages memorized">'+(j+1)+"</button>";
+    for(var q=0;q<8;q++){if(q===4)h+="<span></span>";
+      var pg=qPages(j,q),k=cover(pg),cls=k.w?" weak":k.m===k.n?" on":k.m?" part":"";
+      if(cur!==null&&pg.indexOf(cur)>=0)cls+=" cur";
+      h+='<button class="tick'+cls+'" data-q="'+j+"-"+q+'" title="Pages '+ranges(pg)+'" aria-label="Juz '+(j+1)+" quarter "+(q+1)+", pages "+ranges(pg)+", "+k.m+" of "+k.n+' memorized">'+(k.w?"!":k.m===k.n?"✓":k.m?k.m+"/"+k.n:"")+"</button>";}
+    h+="</div>";}
+  h+='<p class="sync">Quarters here split each juz into eight equal parts by page, so their edges can differ by a few lines from the printed rubʿ marks.</p>';
+  if(tipText)h+='<div class="tip" role="status">'+esc(tipText)+"</div>";
+  return h;}
+
+function daysSince(k){if(!k)return null;var a=k.split("-"),d=new Date(+a[0],+a[1]-1,+a[2],12),t=new Date();t.setHours(12,0,0,0);return Math.round((t-d)/864e5);}
+function markRev(list,key){list.forEach(function(p){var g=state.pages[p];if(g&&(!g.r||g.r<key)){g.rp=g.r||"";g.r=key;}});}
+function unmarkRev(list,key){list.forEach(function(p){var g=state.pages[p];if(g&&g.r===key){if(g.rp)g.r=g.rp;else delete g.r;delete g.rp;}});}
+function viewRevise(){
+  var list=state.rev,left=list.filter(function(x){return !x.done;}).length;
+  var h='<h2 class="page">Pages to revise</h2><p class="lead">Your own list of pages that need more work. Add a page, tap its counter after each repetition, and remove it when it is firm.</p>';
+  h+='<div class="addrow"><input id="rv-page" type="number" inputmode="numeric" min="1" max="604" placeholder="Page number, 1 to 604" aria-label="Page number to add"><button class="btn" data-revadd="1">Add page</button></div>';
+  h+='<div class="gapset"><label for="p-tekrar">Tekrar target for each page, 20 to 40 times</label><input id="p-tekrar" type="number" inputmode="numeric" min="20" max="40" value="'+state.plan.tekrar+'"></div>';
+  h+='<p class="note" role="status" style="margin:0 0 12px">'+(revMsg?esc(revMsg):list.length?left+" of "+list.length+" still to revise.":"No pages on your list yet.")+"</p>";
+  h+='<div class="rlist">';
+  list.forEach(function(x){
+    var c=x.c||0,tg=state.plan.tekrar;
+    h+='<div class="rrow '+(x.done?"ok done":"need")+'"><div><b>Page '+x.p+"</b><small>Juz "+juzOf(x.p)+(x.done?" · tekrar complete":"")+'</small><button class="linkb" data-read="'+x.p+'">Open in Mushaf</button><button class="del" data-revdel="'+x.p+'" aria-label="Remove page '+x.p+' from the list">Remove</button></div><button class="tk'+(c>=tg?" full":"")+'" data-revtap="'+x.p+'" aria-label="Page '+x.p+", "+c+" of "+tg+' repetitions. Tap to count one.">'+c+" <small>/ "+tg+' · +1</small></button><button class="tick'+(x.done?" on":"")+'" data-revtick="'+x.p+'" aria-pressed="'+(x.done?"true":"false")+'" aria-label="Page '+x.p+(x.done?", done. Tap to start a new round":", not done yet")+'">✓</button></div>';});
+  return h+"</div>";}
+function revAdd(){var el=document.getElementById("rv-page"),v=parseInt(el&&el.value,10);
+  if(isNaN(v)||v<1||v>TOTAL)revMsg="Enter a page number from 1 to 604.";
+  else if(state.rev.some(function(x){return x.p===v;}))revMsg="Page "+v+" is already on your list.";
+  else{state.rev.push({p:v,done:0});state.rev.sort(function(a,b){return a.p-b.p;});revMsg="Page "+v+" added.";save();}
+  render();var n=document.getElementById("rv-page");if(n)n.focus();}
+
+function loadPdfLib(){if(pdfLib)return pdfLib;
+  pdfLib=new Promise(function(res,rej){var sc=document.createElement("script");sc.src="pdfjs/pdf.min.js";
+    sc.onload=function(){try{window.pdfjsLib.GlobalWorkerOptions.workerSrc="pdfjs/pdf.worker.min.js";res(window.pdfjsLib);}catch(e){rej(e);}};
+    sc.onerror=function(){pdfLib=null;rej(new Error("load"));};document.head.appendChild(sc);});
+  return pdfLib;}
+function openPdf(file){if(!file)return;pdfMsg="Opening "+file.name+". A full Mushaf can take a little while.";render();
+  Promise.all([loadPdfLib(),file.arrayBuffer()]).then(function(r){return r[0].getDocument({data:r[1]}).promise;})
+    .then(function(doc){pdfDoc=doc;pdfName=file.name;pdfMsg="";render();})
+    .catch(function(){pdfDoc=null;pdfMsg="That file could not be opened. Choose a PDF file and try again.";render();});}
+function srcId(){var s0=state.plan.mushaf;if(s0==="device")return "device";
+  for(var i=0;i<mushafs.length;i++)if(mushafs[i].id===s0)return s0;return mushafs.length?mushafs[0].id:"device";}
+function typeById(id){for(var i=0;i<mushafs.length;i++)if(mushafs[i].id===id)return mushafs[i];return null;}
+function typeDocBy(key,aid){
+  if(!docCache[key]){var ks=Object.keys(docCache);if(ks.length>2)delete docCache[ks[0]];
+    var pr=loadPdfLib().then(function(lib){return lib.getDocument({url:"/_blob/"+aid}).promise;});
+    pr.catch(function(){delete docCache[key];});docCache[key]=pr;}
+  return docCache[key];}
+function typeDoc(t,j){return typeDocBy(t.id+":"+t.files[j],t.files[j]);}
+function isTwo(){var v=state.plan.view;return v==="two"||(v!=="one"&&window.innerWidth>window.innerHeight&&window.innerWidth>=640);}
+function spread(){var p=state.readerPage||1;if(!isTwo())return [p];var r=p%2?p:p-1;return r+1<=TOTAL?[r+1,r]:[r];}
+function current(p){var src=srcId();
+  if(src==="device"){if(!pdfDoc)return {};return {doc:Promise.resolve(pdfDoc),n:p+(state.plan.pdfOffset||0)};}
+  var t=typeById(src),j=juzOf(p),start=JUZ[j-1],skip=0;
+  if(t.full)return {doc:typeDocBy(t.id+":full:"+t.full,t.full),n:p+(t.off||0)};
+  if(t.starts){j=1;for(var k=1;k<=30;k++)if(t.starts[k]&&t.starts[k]<=p)j=k;start=t.starts[j]||1;
+    var gp=(t.gaps&&t.gaps[j])||[];if(gp.indexOf(p)>=0)return {blank:true};
+    gp.forEach(function(g){if(g<p)skip++;});}
+  if(!t.files[j])return {msg:"Juz "+j+" has not been uploaded for "+t.name+" yet."};
+  return {doc:typeDoc(t,j),n:p-start+1-skip+(t.off||0)};}
+function setSt(tx){var st=document.getElementById("rd-status");if(st)st.textContent=tx;}
+function drawPage(){var pages=spread(),token=++drawSeq,left=0;
+  pages.forEach(function(p){var c=current(p);if(!c.doc||!document.getElementById("rd-canvas-"+p))return;left++;setSt("Loading page…");
+    c.doc.then(function(doc){if(token!==drawSeq)return;
+      if(c.n<1||c.n>doc.numPages){setSt("This file has "+doc.numPages+" pages, so it has no page "+c.n+". Check the pages-before setting.");return;}
+      return doc.getPage(c.n).then(function(pg){if(token!==drawSeq)return;var el=document.getElementById("rd-canvas-"+p);if(!el)return;
+        var w=el.parentNode.clientWidth||320,v1=pg.getViewport({scale:1}),dpr=Math.min(window.devicePixelRatio||1,2),vp=pg.getViewport({scale:w/v1.width*dpr});
+        el.width=Math.round(vp.width);el.height=Math.round(vp.height);
+        return pg.render({canvasContext:el.getContext("2d"),viewport:vp}).promise.then(function(){if(token===drawSeq&&--left<=0)setSt("");});});
+    }).catch(function(){if(token===drawSeq)setSt("This page could not be loaded. Check your connection and try again.");});});}
+function turn(dir){var p=state.readerPage||1,n;
+  if(isTwo()){var r=p%2?p:p-1;n=r+dir*2;}else n=p+dir;
+  if(n>=1&&n<=TOTAL)goReader(n);}
+function goReader(n,jump){n=Math.max(1,Math.min(TOTAL,n||1));state.readerPage=n;save();if(route()==="reader"){render();if(jump){var sh=document.querySelector(".sheet");if(sh)sh.scrollIntoView({block:"start"});}}else location.hash="reader";}
+function juzFromName(name){var m=String(name).match(/\d{1,3}/g)||[];for(var i=0;i<m.length;i++){var v=parseInt(m[i],10);if(v>=1&&v<=30)return v;}return 0;}
+async function uploadFiles(files){
+  var t=typeById(pendType);if(!t||!assetsNS||!dbNS||uploading)return;
+  var todo=[],skipped=[],big=[];
+  for(var i=0;i<files.length;i++){var fl=files[i],j=(pendJuz&&files.length===1)?pendJuz:juzFromName(fl.name);
+    if(!j)skipped.push(fl.name);else if(fl.size>20*1048576)big.push(fl.name);else todo.push({f:fl,j:j});}
+  uploading=true;var ok=0,failed=0;
+  for(var k=0;k<todo.length;k++){
+    upMsg="Uploading juz "+todo[k].j+" to "+t.name+" ("+(k+1)+" of "+todo.length+"). Keep this page open.";render();
+    try{var r=await assetsNS.upload(todo[k].f),old=(typeById(t.id)||t).files[todo[k].j],patch={};patch[todo[k].j]=r.id;
+      await dbNS.doc("mushafs/"+t.id).update({files:patch});ok++;
+      if(old&&old!==r.id){try{await assetsNS.delete(old);}catch(e){}}
+    }catch(e){failed++;}}
+  uploading=false;
+  upMsg=ok+" file"+(ok===1?"":"s")+" uploaded to "+t.name+"."+(failed?" "+failed+" failed, try those again.":"")+(big.length?" Too large (over 20 MB): "+big.join(", ")+".":"")+(skipped.length?" No juz number from 1 to 30 in the name: "+skipped.join(", ")+".":"");
+  render();}
+function loadSplitLib(){if(window.PDFLib)return Promise.resolve(window.PDFLib);if(splitLib)return splitLib;
+  splitLib=new Promise(function(res,rej){var sc=document.createElement("script");sc.src="pdflib/pdf-lib.min.js";
+    sc.onload=function(){window.PDFLib?res(window.PDFLib):rej(new Error("x"));};
+    sc.onerror=function(){splitLib=null;rej(new Error("load"));};document.head.appendChild(sc);});
+  return splitLib;}
+async function addFullPdf(file){
+  if(!file||!assetsNS||!dbNS||uploading)return;
+  var MB=1048576,nm=fpName||file.name.replace(/\.pdf$/i,"").slice(0,40)||"Mushaf",off=fpOff,ref=dbNS.collection("mushafs").doc();
+  uploading=true;
+  try{
+    if(file.size<=20*MB){
+      upMsg="Uploading "+nm+"…";render();
+      var r=await assetsNS.upload(file);
+      await ref.set({name:nm,created:Date.now(),files:{},full:r.id,off:off});
+      upMsg=nm+" added as one file. Open the Mushaf tab and check a page.";
+    }else{
+      upMsg="Reading "+nm+" ("+Math.round(file.size/MB)+" MB). This can take a minute.";render();
+      var lib=await loadSplitLib(),buf=await file.arrayBuffer(),src=await lib.PDFDocument.load(buf,{ignoreEncryption:true}),total=src.getPageCount();
+      if(total<TOTAL+off){upMsg="This PDF has "+total+" pages, but "+(TOTAL+off)+" are needed (604 plus "+off+" before Al-Fatihah). Nothing was added.";uploading=false;render();return;}
+      await ref.set({name:nm,created:Date.now(),files:{},off:0});
+      var ok=0,big=[],last=0;
+      for(var j=1;j<=30;j++){
+        var a=JUZ[j-1],b=j<30?JUZ[j]-1:TOTAL,idx=[];for(var p=a;p<=b;p++)idx.push(p-1+off);
+        upMsg="Splitting and uploading juz "+j+" of 30 for "+nm+". Keep this page open.";render();
+        var part=await lib.PDFDocument.create(),cp=await part.copyPages(src,idx);cp.forEach(function(pg){part.addPage(pg);});
+        var bytes=await part.save();
+        if(bytes.length>20*MB){big.push(j);continue;}
+        var res=await assetsNS.upload(new Blob([bytes],{type:"application/pdf"})),patch={};patch[j]=res.id;
+        await ref.update({files:patch});ok++;last=j;}
+      upMsg=nm+": "+ok+" of 30 juz stored."+(big.length?" Juz "+big.join(", ")+" came out over 20 MB, so they were skipped.":" Open the Mushaf tab and check a page.");
+    }
+  }catch(e){
+    upMsg="Adding "+nm+" stopped. "+(file.size>20*MB?"A very large file needs a computer with enough memory. Any juz already stored stay in the list: tap their numbers to fill the rest.":"Try again.");
+  }
+  uploading=false;render();}
+function fullAddBlock(){return '<div class="mtype"><div class="mh"><span>Add a full Mushaf PDF</span></div><div class="f"><label for="fp-name">Name<small>shown in the Mushaf type menu</small></label><input id="fp-name" type="text" maxlength="40" style="width:150px;text-align:start"></div><div class="f"><label for="fp-off">Pages before Al-Fatihah<small>cover and intro pages</small></label><input id="fp-off" type="number" inputmode="numeric" min="0" max="60" value="0"></div><div class="f"><span class="note" style="margin:0">One PDF with all 604 pages. Up to 20 MB it is stored as it is. A larger file is split by juz in your browser and stored as 30 files, so use a computer and keep the page open until it finishes.</span><button type="button" class="btn" data-fullpick="1">Choose PDF</button></div><div class="f"><label for="fp-file2">Picker did not open?<small>choose the file here instead</small></label><input id="fp-file2" type="file" accept="application/pdf,.pdf" style="width:auto;max-width:58%;text-align:start;font-size:13px"></div></div>';}
+function fullBlock(t){return '<div class="mtype"><div class="mh"><span>'+esc(t.name)+' <small>one full PDF stored</small></span><button class="del" data-mtdel="'+t.id+'">'+(delArm===t.id?"Tap again to remove this type and its file":"Remove")+'</button></div><div class="f"><label for="mo-'+t.id+'">Pages before Al-Fatihah<small>cover and intro pages in the file</small></label><input id="mo-'+t.id+'" type="number" inputmode="numeric" min="0" max="60" value="'+(t.off||0)+'"></div></div>';}
+function manageHtml(){
+  var h='<fieldset style="margin-top:14px"><legend>Mushaf types stored in the app</legend><p class="note">Only people who can edit this app see this section. Upload one PDF per juz, up to 20 MB each, or add one full PDF. Everyone you share the app with can then read them without choosing a file. Use editions with the 604-page layout so pages match the tracker.</p>';
+  mushafs.forEach(function(t){if(t.full){h+=fullBlock(t);return;}var n=Object.keys(t.files).length;
+    h+='<div class="mtype"><div class="mh"><span>'+esc(t.name)+" <small>"+n+' of 30 juz uploaded</small></span><button class="del" data-mtdel="'+t.id+'">'+(delArm===t.id?"Tap again to remove this type and its files":"Remove")+"</button></div>";
+    h+='<div class="slots">';for(var j=1;j<=30;j++)h+='<label for="mt-file" class="slot'+(t.files[j]?" on":"")+'" data-slot="'+t.id+"|"+j+'" aria-label="'+(t.files[j]?"Replace":"Upload")+" juz "+j+" for "+esc(t.name)+'">'+j+"</label>";
+    h+='</div><div class="f"><span class="note" style="margin:0">Tap a juz number to upload its file, or send several at once. File names need the juz number, like juz-07.pdf.</span><label for="mt-file" class="btn ghost" data-slotmany="'+t.id+'">Upload several</label></div>';
+    h+='<div class="f"><label for="mo-'+t.id+'">Pages before the juz starts<small>extra pages at the front of each file</small></label><input id="mo-'+t.id+'" type="number" inputmode="numeric" min="0" max="20" value="'+(t.off||0)+'"></div></div>';});
+  h+=fullAddBlock();
+  h+='<div class="mtype"><div class="addrow" style="margin:0"><input id="mt-name" type="text" maxlength="40" placeholder="Name, for example Hafs Madani or Tajweed" aria-label="Name of the new Mushaf type"><button class="btn" data-mtadd="1">Add type</button></div></div>';
+  if(upMsg)h+='<p class="note" role="status">'+esc(upMsg)+"</p>";
+  return h+'</fieldset>';}
+/*IX*/
+var SUR_AR=["الفاتحة","البقرة","آل عمران","النساء","المائدة","الأنعام","الأعراف","الأنفال","التوبة","يونس","هود","يوسف","الرعد","إبراهيم","الحجر","النحل","الإسراء","الكهف","مريم","طه","الأنبياء","الحج","المؤمنون","النور","الفرقان","الشعراء","النمل","القصص","العنكبوت","الروم","لقمان","السجدة","الأحزاب","سبأ","فاطر","يس","الصافات","ص","الزمر","غافر","فصلت","الشورى","الزخرف","الدخان","الجاثية","الأحقاف","محمد","الفتح","الحجرات","ق","الذاريات","الطور","النجم","القمر","الرحمن","الواقعة","الحديد","المجادلة","الحشر","الممتحنة","الصف","الجمعة","المنافقون","التغابن","الطلاق","التحريم","الملك","القلم","الحاقة","المعارج","نوح","الجن","المزمل","المدثر","القيامة","الإنسان","المرسلات","النبأ","النازعات","عبس","التكوير","الانفطار","المطففين","الانشقاق","البروج","الطارق","الأعلى","الغاشية","الفجر","البلد","الشمس","الليل","الضحى","الشرح","التين","العلق","القدر","البينة","الزلزلة","العاديات","القارعة","التكاثر","العصر","الهمزة","الفيل","قريش","الماعون","الكوثر","الكافرون","النصر","المسد","الإخلاص","الفلق","الناس"];
+var SUR_EN=["Al-Fatihah","Al-Baqarah","Aal-Imran","An-Nisa","Al-Ma'idah","Al-An'am","Al-A'raf","Al-Anfal","At-Tawbah","Yunus","Hud","Yusuf","Ar-Ra'd","Ibrahim","Al-Hijr","An-Nahl","Al-Isra","Al-Kahf","Maryam","Ta-Ha","Al-Anbiya","Al-Hajj","Al-Mu'minun","An-Nur","Al-Furqan","Ash-Shu'ara","An-Naml","Al-Qasas","Al-Ankabut","Ar-Rum","Luqman","As-Sajdah","Al-Ahzab","Saba","Fatir","Ya-Sin","As-Saffat","Sad","Az-Zumar","Ghafir","Fussilat","Ash-Shura","Az-Zukhruf","Ad-Dukhan","Al-Jathiyah","Al-Ahqaf","Muhammad","Al-Fath","Al-Hujurat","Qaf","Adh-Dhariyat","At-Tur","An-Najm","Al-Qamar","Ar-Rahman","Al-Waqi'ah","Al-Hadid","Al-Mujadila","Al-Hashr","Al-Mumtahanah","As-Saff","Al-Jumu'ah","Al-Munafiqun","At-Taghabun","At-Talaq","At-Tahrim","Al-Mulk","Al-Qalam","Al-Haqqah","Al-Ma'arij","Nuh","Al-Jinn","Al-Muzzammil","Al-Muddaththir","Al-Qiyamah","Al-Insan","Al-Mursalat","An-Naba","An-Nazi'at","Abasa","At-Takwir","Al-Infitar","Al-Mutaffifin","Al-Inshiqaq","Al-Buruj","At-Tariq","Al-A'la","Al-Ghashiyah","Al-Fajr","Al-Balad","Ash-Shams","Al-Layl","Ad-Duha","Ash-Sharh","At-Tin","Al-Alaq","Al-Qadr","Al-Bayyinah","Az-Zalzalah","Al-Adiyat","Al-Qari'ah","At-Takathur","Al-Asr","Al-Humazah","Al-Fil","Quraysh","Al-Ma'un","Al-Kawthar","Al-Kafirun","An-Nasr","Al-Masad","Al-Ikhlas","Al-Falaq","An-Nas"];
+var SUR_PG=[1,2,50,77,106,128,151,177,187,208,221,235,249,255,262,267,282,293,305,312,322,332,342,350,359,367,377,385,396,404,411,415,418,428,434,440,446,453,458,467,477,483,489,496,499,502,507,511,515,518,520,523,526,528,531,534,537,542,545,549,551,553,554,556,558,560,562,564,566,568,570,572,574,575,577,578,580,582,583,585,586,587,587,589,590,591,591,592,593,594,595,595,596,596,597,597,598,598,599,599,600,600,601,601,601,602,602,602,603,603,603,604,604,604];
+function ixNorm(t){return String(t).replace(/[ً-ٰٟـ]/g,"").replace(/[أإآٱ]/g,"ا").replace(/ى/g,"ي").replace(/ة/g,"ه").toLowerCase();}
+function ixEn(t){return String(t).toLowerCase().replace(/[^a-z]/g,"");}
+function ixDigits(t){return String(t).replace(/[٠-٩]/g,function(d){return String(d.charCodeAt(0)-1632);}).replace(/[۰-۹]/g,function(d){return String(d.charCodeAt(0)-1776);});}
+function ixItem(t,sub,page){return '<button class="ixr" data-read="'+page+'"><span>'+t+"</span><small>"+sub+"</small></button>";}
+function ixSurah(i){var pg=SUR_PG[i];return ixItem("<b>"+(i+1)+'</b><span class="ar" lang="ar">'+SUR_AR[i]+"</span>"+esc(SUR_EN[i]),"Page "+pg+" · Juz "+juzOf(pg),pg);}
+function ixFind(raw){
+  var q=ixDigits(raw).trim(),out=[];if(!q)return out;
+  var m=q.match(/\d+/),n=m?parseInt(m[0],10):0,word=q.replace(/\d+/g,"").trim(),wn=ixNorm(word).replace(/^سوره\s*/,"").replace(/\s+/g,""),we=ixEn(word).replace(/^(surah|sura|surat|sora)/,"");
+  var kJuz=/^(juz|joz|jozz|para|جزء|جز)$/.test(ixEn(word)||ixNorm(word)),kPage=/^(page|pg|p|صفحه|ص)$/.test(ixEn(word)||ixNorm(word)),kSur=/^(surah|sura|surat|sora|سوره)$/.test(ixEn(word)||ixNorm(word)),any=!word;
+  if(m&&(any||kJuz||kPage||kSur)){
+    if((any||kPage)&&n>=1&&n<=TOTAL)out.push(ixItem("Page "+n,"Juz "+juzOf(n),n));
+    if((any||kJuz)&&n>=1&&n<=30)out.push(ixItem("Juz "+n,"starts on page "+JUZ[n-1],JUZ[n-1]));
+    if((any||kSur)&&n>=1&&n<=114)out.push(ixSurah(n-1));
+    return out;}
+  var hits=[];
+  for(var i=0;i<114;i++){var ar=ixNorm(SUR_AR[i]),en=ixEn(SUR_EN[i]),ok=(wn&&ar.indexOf(wn)>=0)||(we&&en.indexOf(we)>=0);if(!ok)continue;
+    var arC=ar.replace(/^ال/,""),enC=en.replace(/^(ash|adh|ath|aal|az|as|ar|an|al|ad|at)/,""),sc=2;
+    if((wn&&(ar===wn||arC===wn))||(we&&(en===we||enC===we)))sc=0;else if((wn&&(arC.indexOf(wn)===0||ar.indexOf(wn)===0))||(we&&(enC.indexOf(we)===0||en.indexOf(we)===0)))sc=1;
+    hits.push([sc,i]);}
+  hits.sort(function(a,b){return a[0]-b[0]||a[1]-b[1];});
+  return hits.slice(0,10).map(function(h){return ixSurah(h[1]);});}
+function ixResults(raw){
+  if(!String(raw).trim()){var j="";for(var k=1;k<=30;k++)j+='<button class="jc" data-read="'+JUZ[k-1]+'" aria-label="Juz '+k+', page '+JUZ[k-1]+'">'+k+"</button>";
+    var all="";for(var i=0;i<114;i++)all+=ixSurah(i);
+    return '<p class="note" style="margin:0 0 6px">Juz</p><div class="jchips">'+j+'</div><details class="ixall"><summary>All 114 surahs</summary><div class="ixlist">'+all+"</div></details>";}
+  var r=ixFind(raw);return r.length?r.join(""):'<p class="note">No match. Try a page number, a juz number, or part of a surah name in Arabic or English.</p>';}
+function indexHtml(){return '<div class="idx"><div class="addrow" style="margin-bottom:8px"><input id="ix-q" type="search" enterkeyhint="go" autocomplete="off" placeholder="Go to page, juz or surah name" aria-label="Go to page, juz or surah name"><button class="btn" data-ixgo="1">Go</button></div><div id="ix-res">'+ixResults("")+"</div></div>";}
+function ixGo(){var el=document.getElementById("ix-q"),b=document.querySelector("#ix-res .ixr");if(b&&el&&el.value.trim())goReader(+b.getAttribute("data-read"),true);}
+/*IXEND*/
+function viewReader(){
+  var p=state.readerPage||1,off=state.plan.pdfOffset||0,src=srcId();
+  var h='<div class="reader"><h2 class="page">Mushaf</h2>';
+  if(mushafs.length)h+='<div class="srcsel"><label for="rd-src">Mushaf type</label><select id="rd-src">'+mushafs.map(function(t){return '<option value="'+t.id+'"'+(src===t.id?" selected":"")+">"+esc(t.name)+"</option>";}).join("")+'<option value="device"'+(src==="device"?" selected":"")+">A PDF from this device</option></select></div>";
+  if(src==="device"&&!pdfDoc){
+    h+='<p class="lead">Read your own Mushaf PDF inside the app. Use the standard 604-page Madani layout so its pages match the tracker.</p>';
+    h+='<label class="pick" for="rd-file" data-rdpick="1"><b>Choose your Mushaf PDF</b><span>The file stays on this device. You choose it again each time you open the app.</span></label>';
+    if(pdfMsg)h+='<p class="note" role="status">'+esc(pdfMsg)+"</p>";
+  }else{
+    h+=indexHtml();
+    h+='<div class="bar"><button class="btn ghost" data-rd="1"'+(p>=TOTAL?" disabled":"")+'>‹ Next</button><span class="mid"><label for="rd-page">Page</label><input id="rd-page" type="number" inputmode="numeric" min="1" max="604" value="'+p+'"><span>Juz '+juzOf(p)+'</span></span><button class="btn ghost" data-rd="-1"'+(p<=1?" disabled":"")+">Previous ›</button></div>";
+    var sp=spread(),vw=state.plan.view||"auto";
+    h+='<div class="seg-ctl" role="group" aria-label="Page view">'+[["auto","Automatic"],["one","One page"],["two","Two pages"]].map(function(m){return '<button data-view="'+m[0]+'" class="'+(vw===m[0]?"on":"")+'">'+m[1]+"</button>";}).join("")+"</div>";
+    var lk=state.plan.look||"color";
+    h+='<div class="seg-ctl" role="group" aria-label="Page colors">'+[["color","Color"],["gray","Gray"],["bw","Black and white"]].map(function(m){return '<button data-look="'+m[0]+'" class="'+(lk===m[0]?"on":"")+'">'+m[1]+"</button>";}).join("")+"</div>";
+    h+='<div class="sheet'+(sp.length>1?" two":"")+(lk==="color"?"":" look-"+lk)+'">'+sp.map(function(q){var cq=current(q);return '<div class="half">'+(cq.blank?'<div class="blankpg" role="img" aria-label="Page '+q+', blank"></div>':cq.msg?'<p class="note">'+esc(cq.msg)+"</p>":'<canvas id="rd-canvas-'+q+'" aria-label="Mushaf page '+q+'"></canvas>')+"</div>";}).join("")+'</div><p class="note" id="rd-status" role="status"></p><p class="note">Automatic shows two facing pages when the screen is held sideways, with the odd page on the right. Pages turn right to left, like the printed Mushaf. Swipe the page to the right or tap its left side for the next page. Swipe left or tap its right side to go back.</p>';
+    if(src==="device")h+='<fieldset style="margin-top:12px"><legend>This PDF</legend><div class="f"><label for="p-pdfOffset">Pages before Al-Fatihah<small>cover and intro pages in '+esc(pdfName)+'</small></label><input id="p-pdfOffset" type="number" inputmode="numeric" min="0" max="60" value="'+off+'"></div><div class="f"><span class="note" style="margin:0">'+pdfDoc.numPages+' pages in this file.</span><button class="btn ghost" data-rdclose="1">Choose another PDF</button></div></fieldset>';
+  }
+  return h+"</div>";}
+
+var AW=[["read","قراءة","Read"],["listen","استماع","Listen"],["mem","حفظ","New"],["near","قريب","Qareeb"],["far","بعيد","Ba3eed"]];
+function weekDays(){var t=new Date();t.setHours(12,0,0,0);var back=(t.getDay()+1)%7,a=[];
+  for(var i=0;i<7;i++){var d=new Date(t);d.setDate(t.getDate()-back+i);a.push(d);}return a;}
+function viewWeek(){
+  var days=weekDays(),tk=dkey(),done=0,cells=0,rows="",pl=state.plan;
+  days.forEach(function(dt){var k=dkey(dt),r=state.days[k]||{},future=k>tk,isToday=k===tk;
+    var row='<div class="wrow'+(isToday?" now":"")+'"><div class="dn">'+dt.toLocaleDateString("en-GB",{weekday:"short"})+"<small>"+dt.getDate()+" "+dt.toLocaleDateString("en-GB",{month:"short"})+(isToday?" · today":"")+"</small></div>";
+    AW.forEach(function(w){var on,txt="✓",cls="",attr="";
+      if(w[0]==="mem"){var m=r.mem||0;on=m>=pl.perDay;if(!on&&m){cls=" part";txt=m+"/"+pl.perDay;}
+        attr=isToday?' data-act="start"':' disabled';if(!future)cls+=" show";}
+      else{on=!!r[w[0]];attr=future?" disabled":' data-act="'+w[0]+'" data-day="'+k+'"';}
+      if(!future){cells++;if(on)done++;}
+      row+='<button class="tick'+(on?" on":"")+cls+'"'+attr+' aria-label="'+w[2]+" "+dt.toLocaleDateString("en-GB",{weekday:"long"})+(on?", done":", not done")+'">'+txt+"</button>";});
+    rows+=row+"</div>";});
+  var h='<h2 class="page">This week</h2><div class="wsum"><p class="lead" style="margin:0">'+days[0].getDate()+" "+days[0].toLocaleDateString("en-GB",{month:"short"})+" to "+days[6].getDate()+" "+days[6].toLocaleDateString("en-GB",{month:"short"})+". Tick a square when a werd is done. You can fill in earlier days too.</p><span><b>"+done+"</b>/"+cells+"</span></div>";
+  h+='<div class="week"><div class="wrow head"><span></span>'+AW.map(function(w){return '<span><span class="ar" lang="ar">'+w[1]+"</span>"+w[2]+"</span>";}).join("")+"</div>"+rows+"</div>";
+  h+='<p class="sync">The memorizing square fills by itself when you finish the day’s new pages. Tap today’s to open the session.</p>';
+  return h;}
+
+function fld(id,label,small,val,min,max){return '<div class="f"><label for="'+id+'">'+label+(small?"<small>"+small+"</small>":"")+'</label><input id="'+id+'" type="number" inputmode="numeric" min="'+min+'" max="'+max+'" value="'+val+'"></div>';}
+function viewPlan(){var p=state.plan,r=p.reps;
+  var rm=p.rem||{};
+  function tf(k,label){return '<div class="f"><label for="t-'+k+'">'+label+'</label><input id="t-'+k+'" type="time" value="'+esc(rm[k]||"")+'"></div>';}
+  var h='<h2 class="page">Settings</h2><p class="lead">These settings drive the Today screen. Changes apply straight away.</p>';
+  h+='<fieldset><legend>Theme</legend><div class="seg-ctl" role="group" aria-label="Theme" style="margin:8px 0 4px">'+[["auto","Automatic"],["day","Day"],["night","Night"]].map(function(m){return '<button data-theme-set="'+m[0]+'" class="'+((p.theme||"auto")===m[0]?"on":"")+'">'+m[1]+"</button>";}).join("")+"</div></fieldset>";
+  h+="<fieldset><legend>Reminders</legend>"+tf("read","Reading werd")+tf("listen","Listening werd")+tf("mem","Memorizing werd")+tf("near","Revising qareeb")+tf("far","Revising ba3eed")+'<p class="note">Set a time for each werd, or leave it empty for none. While this page is open, a werd that passes its time without a tick is marked Due on Today. This page cannot ring or send a notification when it is closed.</p></fieldset>';
+  h+='<fieldset><legend>Already memorized</legend><div class="f"><label for="m-juz">Full juz you know<small>0 to 30</small></label><input id="m-juz" type="number" inputmode="numeric" min="0" max="30" value="0"></div><div class="f"><label for="m-pages">Extra pages after those<small>0 to 22</small></label><input id="m-pages" type="number" inputmode="numeric" min="0" max="22" value="0"></div><div class="f"><label for="m-from">Counted from</label><select id="m-from"><option value="1">Al-Fatihah (juz 1 up)</option><option value="-1">An-Nas (juz 30 down)</option></select></div><div class="f"><span class="note" style="margin:0">'+(memMsg?esc(memMsg):"You have "+memList().length+" of 604 pages marked. This adds to them and moves your next new page to where you stopped.")+'</span><button class="btn" data-act="applymem">Apply</button></div></fieldset>';
+  h+="<fieldset><legend>Memorizing</legend>"+fld("p-perDay","New pages per day","",p.perDay,1,20)+fld("p-start","Start from page","1 to 604",p.start,1,604)+'<div class="f"><label for="p-dir">Direction</label><select id="p-dir"><option value="1"'+(p.dir===1?" selected":"")+'>Forward (1 → 604)</option><option value="-1"'+(p.dir===-1?" selected":"")+">Backward (604 → 1)</option></select></div></fieldset>";
+  h+="<fieldset><legend>Repetitions for each new page</legend>"+fld("r-listen","Listening","",r.listen,1,99)+fld("r-silent","Reading silently","",r.silent,1,99)+fld("r-aloud","Reading aloud","",r.aloud,1,99)+fld("r-ayah","Each ayah","",r.ayah,1,99)+fld("r-page","Whole page","minimum 20",r.page,20,200)+"</fieldset>";
+  h+="<fieldset><legend>Daily awrad</legend>"+fld("p-read","Reading werd, pages","20 pages is one juz",p.read,1,604)+fld("p-listen","Listening werd, pages","10 pages is one hizb",p.listen,1,604)+fld("p-near","Qareeb window, pages","your most recent pages, revised daily",p.near,1,604)+fld("p-far","Ba3eed werd, pages","older pages per day, in rotation",p.far,1,604)+"</fieldset>";
+  h+='<fieldset><legend>Moving to the new app</legend><p class="note">Tap Copy my progress, then paste it in the new app under Settings, Account, Bring progress from the old app.</p><textarea id="exp-text" readonly rows="2" style="width:100%;font:inherit;font-size:11px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--muted);padding:8px">'+esc(JSON.stringify(state))+'</textarea><div class="f" style="border:0"><span class="note" style="margin:0" role="status">'+esc(expMsg)+'</span><button class="btn ghost" data-expcopy="1">Copy my progress</button></div></fieldset>';
+  if(assetsNS&&dbNS)h+=manageHtml();
+  return h;}
+
+function route(){var h=(location.hash||"#today").slice(1);return ["today","week","revise","mushaf","reader","plan","memorize"].indexOf(h)<0?"today":h;}
+function render(){applyTheme();var r=route(),app=document.getElementById("app");
+  app.innerHTML=r==="memorize"?viewSession():r==="week"?viewWeek():r==="revise"?viewRevise():r==="reader"?viewReader():r==="mushaf"?viewMushaf():r==="plan"?viewPlan():viewToday();
+  ["today","week","revise","mushaf","reader","plan"].forEach(function(t){document.getElementById("tab-"+t).className=(r===t||(r==="memorize"&&t==="today"))?"on":"";});
+  app.className="app"+(r==="reader"&&isTwo()?" wide":"");
+  if(r==="reader")drawPage();}
+
+/* ---------- actions ---------- */
+function toggle(key,posKey,n,d){
+  if(d[key]){d[key]=0;state[posKey]=wrap(state[posKey]-n);}else{d[key]=1;state[posKey]=wrap(state[posKey]+n);}}
+function act(a,dk){var d=dk?(state.days[dk]||(state.days[dk]={})):day(),s=state.session,rp=state.plan.reps;
+  if(a==="read")toggle("read","readPos",state.plan.read,d);
+  else if(a==="listen")toggle("listen","listenPos",state.plan.listen,d);
+  else if(a==="near"){var rk=dk||dkey();
+    if(d.near){d.near=0;unmarkRev(d.nearList||[],rk);delete d.nearList;}
+    else{var nl=nearList();if(!nl.length)return;d.near=1;d.nearList=nl;markRev(nl,rk);}}
+  else if(a==="far"){var all=farAll().length;
+    if(d.far){d.far=0;unmarkRev(d.farList||[],dk||dkey());if(all)state.farPos=((state.farPos-(d.farList||[]).length)%all+all)%all;delete d.farList;}
+    else{var l=farToday();if(!l.length)return;d.far=1;d.farList=l;markRev(l,dk||dkey());if(all)state.farPos=(state.farPos+l.length)%all;}}
+  else if(a==="start"){if(!s){var p=nextNew();if(p===null)return;state.session={page:p,step:0,c:[0,0,0,0,0],ayah:1,ayahs:0};}
+    save();location.hash="memorize";render();return;}
+  else if(a==="leave"){location.hash="today";return;}
+  else if(a==="applymem"){
+    var nj=Math.max(0,Math.min(30,parseInt(document.getElementById("m-juz").value,10)||0));
+    var nx2=Math.max(0,Math.min(22,parseInt(document.getElementById("m-pages").value,10)||0));
+    var fr=document.getElementById("m-from").value==="-1"?-1:1,cnt=0,busy=s?s.page:null,list=[];
+    if(fr===1){var end=(nj>=30?TOTAL:JUZ[nj]-1)+nx2;for(var p1=1;p1<=Math.min(TOTAL,end);p1++)list.push(p1);}
+    else{var st0=(nj<=0?TOTAL+1:JUZ[30-nj])-nx2;for(var p2=TOTAL;p2>=Math.max(1,st0);p2--)list.push(p2);}
+    if(!list.length){memMsg="Enter at least one juz or one page first.";render();return;}
+    list.forEach(function(p){if(!state.pages[p]&&p!==busy){state.pages[p]={d:null,t:p};cnt++;}});
+    state.plan.dir=fr;state.plan.start=fr===1?wrap(list[list.length-1]+1):wrap(list[list.length-1]-1);
+    var nn=nextNew();
+    memMsg=cnt+" pages added. "+memList().length+" of 604 are now marked"+(nn===null?".":", and your next new page is "+nn+".");}
+  else if(s&&a==="tap"){var k=STEPS[s.step].k;s.c[s.step]++;
+    if(k!=="ayah"&&k!=="page"&&s.c[s.step]>=rp[k])s.step++;}
+  else if(s&&a==="undo"){if(s.c[s.step]>0)s.c[s.step]--;}
+  else if(s&&a==="nextayah"){s.ayah++;s.ayahs=(s.ayahs||0)+1;s.c[3]=0;}
+  else if(s&&a==="lastayah"){s.ayahs=(s.ayahs||0)+1;s.step=4;}
+  else if(s&&a==="finish"){d=day();state.pages[s.page]={d:dkey(),t:Date.now(),r:dkey()};d.mem=(d.mem||0)+1;state.session=null;save();location.hash="today";render();return;}
+  save();render();}
+
+document.addEventListener("click",function(e){
+  if(e.target.closest("[data-expcopy]")){var et=document.getElementById("exp-text");if(!et)return;et.focus();et.select();
+    function done(okc){expMsg=okc?"Copied. Now paste it in the new app.":"Select all the text in the box and copy it by hand.";render();}
+    var okc=false;try{okc=document.execCommand("copy");}catch(er){}
+    if(okc)done(true);else if(navigator.clipboard)navigator.clipboard.writeText(et.value).then(function(){done(true);},function(){done(false);});else done(false);return;}
+  var b=e.target.closest("[data-act]");if(b&&!b.disabled){act(b.getAttribute("data-act"),b.getAttribute("data-day"));return;}
+  var sb=e.target.closest("[data-salah]");if(sb&&!sb.disabled){var sk=sb.getAttribute("data-day"),sd=state.days[sk]||(state.days[sk]={});
+    sd.s=sd.s||{};var sx=sb.getAttribute("data-salah");if(sd.s[sx])delete sd.s[sx];else sd.s[sx]=1;save();render();return;}
+  if(e.target.closest("[data-revadd]")){revAdd();return;}
+  if(e.target.closest("[data-ixgo]")){ixGo();return;}
+  var rdl=e.target.closest("[data-read]");if(rdl){goReader(+rdl.getAttribute("data-read"),!!rdl.closest("#ix-res"));return;}
+  var rdn=e.target.closest("[data-rd]");if(rdn&&!rdn.disabled){turn(+rdn.getAttribute("data-rd"));return;}
+  var vwb=e.target.closest("[data-view]");if(vwb){state.plan.view=vwb.getAttribute("data-view");save();render();return;}
+  var lkb=e.target.closest("[data-look]");if(lkb){state.plan.look=lkb.getAttribute("data-look");save();render();return;}
+  if(e.target.closest("[data-rdclose]")){pdfDoc=null;pdfName="";pdfMsg="";render();return;}
+  if(e.target.closest("[data-rdpick]")){var rf=document.getElementById("rd-file");if(rf)rf.value="";return;}
+  if(e.target.closest("[data-fullpick]")){if(uploading){upMsg="An upload is still running. Wait for it to finish, or reload the page to cancel it.";render();return;}
+    var fpf=document.getElementById("fp-file");if(fpf){fpf.value="";try{if(fpf.showPicker)fpf.showPicker();else fpf.click();}catch(er){fpf.click();}}return;}
+  var sl=e.target.closest("[data-slot],[data-slotmany]");if(sl){if(uploading){e.preventDefault();upMsg="An upload is still running. Wait for it to finish, or reload the page to cancel it.";render();return;}
+    if(sl.hasAttribute("data-slot")){var sp=sl.getAttribute("data-slot").split("|");pendType=sp[0];pendJuz=+sp[1];}else{pendType=sl.getAttribute("data-slotmany");pendJuz=0;}
+    var fi=document.getElementById("mt-file");if(fi)fi.value="";return;}
+  if(e.target.closest("[data-mtadd]")){var ne=document.getElementById("mt-name"),nm=ne?ne.value.trim():"";
+    if(!nm){upMsg="Type a name for the Mushaf type first.";render();return;}
+    upMsg="";dbNS.collection("mushafs").doc().set({name:nm,created:Date.now(),files:{},off:0}).catch(function(){upMsg="The type could not be added. Try again.";render();});return;}
+  var md=e.target.closest("[data-mtdel]");if(md){var mid=md.getAttribute("data-mtdel"),mt=typeById(mid);if(!mt||uploading)return;
+    if(delArm!==mid){delArm=mid;render();return;}
+    delArm="";var ids=Object.keys(mt.files).map(function(k){return mt.files[k];});if(mt.full)ids.push(mt.full);
+    dbNS.doc("mushafs/"+mid).delete().then(function(){ids.forEach(function(i){assetsNS.delete(i).catch(function(){});});upMsg=mt.name+" removed.";render();}).catch(function(){upMsg="That type could not be removed. Try again.";render();});return;}
+  var tp=e.target.closest("[data-revtap]");if(tp){var tpn=+tp.getAttribute("data-revtap");
+    state.rev.forEach(function(x){if(x.p===tpn){x.c=(x.c||0)+1;if(x.c>=state.plan.tekrar)x.done=1;}});revMsg="";save();render();return;}
+  var rv=e.target.closest("[data-revtick],[data-revdel]");if(rv){var del=rv.hasAttribute("data-revdel"),rp1=+rv.getAttribute(del?"data-revdel":"data-revtick");
+    if(del)state.rev=state.rev.filter(function(x){return x.p!==rp1;});
+    else state.rev.forEach(function(x){if(x.p===rp1){if(x.done){x.done=0;x.c=0;}else x.done=1;}});
+    revMsg="";save();render();return;}
+  var wk=e.target.closest("[data-week]");if(wk){weekTab=wk.getAttribute("data-week");render();return;}
+  var th=e.target.closest("[data-theme-set]");if(th){state.plan.theme=th.getAttribute("data-theme-set");save();render();return;}
+  var m=e.target.closest("[data-mode]");if(m){markMode=m.getAttribute("data-mode");tipText="";render();return;}
+  var c=e.target.closest("[data-q],[data-juz]");if(c){var list,name;
+    if(c.hasAttribute("data-juz")){var jz=+c.getAttribute("data-juz");list=jPages(jz);name="Juz "+(jz+1);}
+    else{var qq=c.getAttribute("data-q").split("-");list=qPages(+qq[0],+qq[1]);name="Juz "+(+qq[0]+1)+" quarter "+(+qq[1]+1)+" (pages "+ranges(list)+")";}
+    var k=cover(list),busy=state.session?state.session.page:null;
+    if(markMode==="mem"){
+      if(k.m===k.n){list.forEach(function(p){delete state.pages[p];});tipText=name+" cleared";}
+      else{list.forEach(function(p){if(!state.pages[p]&&p!==busy)state.pages[p]={d:null,t:p};});tipText=name+" ticked as memorized";}}
+    else{
+      if(!k.m)tipText=name+" is not memorized yet";
+      else{var on=!k.w;list.forEach(function(p){if(state.pages[p])state.pages[p].w=on?1:0;});tipText=name+(on?" flagged weak. It joins qareeb every day.":" is no longer weak");}}
+    save();render();}
+});
+document.addEventListener("change",function(e){var id=e.target.id||"";
+  if(id==="rd-file"){openPdf(e.target.files&&e.target.files[0]);return;}
+  if(id==="fp-file"||id==="fp-file2"){var ff=e.target.files&&e.target.files[0];if(!ff)return;
+    var fn=document.getElementById("fp-name"),fo=document.getElementById("fp-off");fpName=fn?fn.value.trim():"";fpOff=Math.max(0,Math.min(60,parseInt(fo&&fo.value,10)||0));
+    if(uploading){upMsg="An upload is still running. Wait for it to finish, or reload the page to cancel it.";render();return;}
+    if(!assetsNS||!dbNS){upMsg="Storage is not ready yet. Wait a moment and choose the file again.";render();return;}
+    addFullPdf(ff);return;}
+  if(id==="mt-file"){if(e.target.files&&e.target.files.length)uploadFiles(Array.prototype.slice.call(e.target.files));return;}
+  if(id==="rd-src"){state.plan.mushaf=e.target.value;save();render();return;}
+  if(/^mo-/.test(id)){var ov=Math.max(0,Math.min(60,parseInt(e.target.value,10)||0));if(dbNS)dbNS.doc("mushafs/"+id.slice(3)).update({off:ov}).catch(function(){});return;}
+  if(id==="rd-page"){goReader(parseInt(e.target.value,10));return;}
+  if(/^t-/.test(id)){state.plan.rem=state.plan.rem||{};state.plan.rem[id.slice(2)]=/^\d\d:\d\d$/.test(e.target.value)?e.target.value:"";save();return;}
+  if(!/^[pr]-/.test(id))return;
+  var k=id.slice(2),v=parseInt(e.target.value,10);if(isNaN(v))return;
+  var lo=+e.target.min||-1,hi=+e.target.max||604;if(id!=="p-dir")v=Math.max(lo,Math.min(hi,v));
+  if(id.charAt(0)==="r")state.plan.reps[k]=v;else state.plan[k]=v;
+  save();render();});
+var swX=null,swY=0;
+document.addEventListener("pointerdown",function(e){if(e.target.closest(".sheet")){swX=e.clientX;swY=e.clientY;}else swX=null;});
+document.addEventListener("pointerup",function(e){if(swX===null)return;var dx=e.clientX-swX,dy=e.clientY-swY,sh=e.target.closest(".sheet")||document.querySelector(".sheet");swX=null;if(!sh)return;
+  var p=state.readerPage||1,step=0;
+  if(Math.abs(dx)>45&&Math.abs(dx)>Math.abs(dy)*1.5)step=dx>0?1:-1;
+  else if(Math.abs(dx)<8&&Math.abs(dy)<8){var r=sh.getBoundingClientRect();step=e.clientX<r.left+r.width/2?1:-1;}
+  if(step)turn(step);});
+var rzT=null;window.addEventListener("resize",function(){clearTimeout(rzT);rzT=setTimeout(function(){var ae=document.activeElement;if(route()==="reader"&&!(ae&&/^(INPUT|SELECT)$/.test(ae.tagName)))render();},200);});
+document.addEventListener("pointercancel",function(){swX=null;});
+document.addEventListener("input",function(e){if(e.target.id==="ix-q"){var r=document.getElementById("ix-res");if(r)r.innerHTML=ixResults(e.target.value);}});
+document.addEventListener("keydown",function(e){if(e.key==="Enter"&&e.target.id==="ix-q"){e.preventDefault();ixGo();}});
+document.addEventListener("keydown",function(e){
+  if(route()==="reader"&&(e.key==="ArrowLeft"||e.key==="ArrowRight")&&!/^(INPUT|SELECT|TEXTAREA)$/.test(e.target.tagName)){e.preventDefault();turn(e.key==="ArrowLeft"?1:-1);return;}if(e.key==="Enter"&&e.target.id==="rv-page"){e.preventDefault();revAdd();}});
+window.addEventListener("hashchange",function(){tipText="";memMsg="";revMsg="";render();window.scrollTo(0,0);});
+
+render();
+connect();
+setInterval(function(){if(route()==="today")render();},60000);
+})();
+</script>
+</body>
+</html>
